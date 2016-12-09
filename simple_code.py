@@ -17,10 +17,10 @@ from parzen import get_parzen_estimator
 
 srng = RandomStreams()
 #### HYPER PARAMETERS ####
-num_epochs = 50
-num_steps = 15
-infuse_rate = 0.01
-infuse_rate_decay = 0.01
+num_epochs = 70
+num_steps = 16
+infuse_rate = 0.0
+infuse_rate_growth = 0.01
 batch_size = 512
 var_scale = 0.1
 
@@ -144,7 +144,7 @@ def get_first_term(mu_prior, var_prior, mu_target, var_target, infuse_rate):
     z_T_first, new_mask = samples_mix(mu_prior, var_prior, mu_target, var_target, infuse_rate)
     # Compute p(z^(0))
     first_logp = eval_log_gaussian(mu_prior, var_prior, z_T_first)
-    # Compute q(z^(0))
+    # Compute q(z^(0) | x)
     first_logq = log_add_exp(T.log(1 - infuse_rate) + first_logp, T.log(infuse_rate) + eval_log_gaussian(mu_target, var_target, z_T_first))
     return first_logp, first_logq, z_T_first, new_mask
 
@@ -170,7 +170,7 @@ def compute_step_train(network, z_T, infuse_rate, mu_target, var_target, coeff_s
 
 
 # Run chain on training
-def run_chaine_train_for(network, num_steps, mu_prior, var_prior, mu_target, var_target, infuse_rate, infuse_rate_decay, coeff_scale_var):
+def run_chaine_train_for(network, num_steps, mu_prior, var_prior, mu_target, var_target, infuse_rate, infuse_rate_growth, coeff_scale_var):
     # Get the first term
     first_logp, first_logq, z_T, new_mask = get_first_term(mu_prior, var_prior, mu_target, var_target, infuse_rate)
     log_p_sum = first_logp
@@ -186,9 +186,9 @@ def run_chaine_train_for(network, num_steps, mu_prior, var_prior, mu_target, var
         log_q_sum = log_q + log_q_sum
         # Compute \sum_{t=1}^(T-1) \frac{t}{T} log(p(x | z^(t-1)))
         log_pzx_sum = log_pzx_sum + (p_x0_x1 * (i+1) / num_steps)
-        # Increase infusion rate 
-        if infuse_rate_decay:
-            infuse_rate += infuse_rate_decay
+        # Increase infusion rate
+        if infuse_rate_growth:
+            infuse_rate += infuse_rate_growth
     return z_T, log_p_sum, log_q_sum, p_x0_x1, log_pzx_sum
 
 
@@ -226,7 +226,7 @@ var_prior = T.tensor4('var_prior')
 # Build network
 network = build_MLP_mnist()
 ### Training phase ###
-z_T, log_p_sum, log_q_sum, p_x0_x1, log_pzx_sum = run_chaine_train_for(network, num_steps, mu_prior, var_prior, mu_target, var_target, infuse_rate, infuse_rate_decay, var_scale)
+z_T, log_p_sum, log_q_sum, p_x0_x1, log_pzx_sum = run_chaine_train_for(network, num_steps, mu_prior, var_prior, mu_target, var_target, infuse_rate, infuse_rate_growth, var_scale)
 # Compute lower_bound
 lower_bound = (p_x0_x1 + log_p_sum - log_q_sum).sum(axis=(3,2,1)).mean()
 # Select loss
@@ -324,6 +324,7 @@ for i in range(20):
 parzen, se = get_parzen_estimator(data_test, samples_mu, "mnist")
 print "Lower bound on test set: %.4f" % (loss_total_test)
 print "Parzen on test set: %.4f" % (parzen.mean())
+# Save some samples and the mean
 x_T, samples_chain, mu_pred, var_pred = fn_sample(mu_prior[0:144], var_prior[0:144])
 print_samples(x_T, epoch, 144, 'samples.png')
 print_samples(mu_pred, epoch, 144, 'mean.png')
