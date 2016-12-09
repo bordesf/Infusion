@@ -175,7 +175,8 @@ def run_chaine_train_for(network, num_steps, mu_prior, var_prior, mu_target, var
     first_logp, first_logq, z_T, new_mask = get_first_term(mu_prior, var_prior, mu_target, var_target, infuse_rate)
     log_p_sum = first_logp
     log_q_sum = first_logq
-    log_pzx_sum = eval_log_gaussian(mu_prior, var_prior, mu_target) * 0
+    # Compute p(x | z^0) (Doesn't depend of the model parameters)
+    log_pzx_sum = eval_log_gaussian(mu_prior, var_prior, mu_target)
     # Run the chain
     for i in range(num_steps):
         z_T, noise_level_args, log_p, log_q, p_x0_x1, new_mask, mu_model, var_model = compute_step_train(network, z_T, infuse_rate, mu_target, var_target, coeff_scale_var)
