@@ -164,7 +164,7 @@ def compute_step_train(network, z_T, infuse_rate, mu_target, var_target, coeff_s
     log_p = eval_log_gaussian(mu_model, var_model, z_t)
     # Compute log(q(z^(t) | z^(t-1)))
     log_q = log_add_exp(T.log(1. - infuse_rate) + log_p, T.log(infuse_rate) + eval_log_gaussian(mu_target, var_target, z_t))
-    # Compute \log(p(x | z^(t)))
+    # Compute \log(p(x | z^(t-1)))
     p_x0_x1 = eval_log_gaussian(mu_model, var_model, mu_target)
     return z_t, infuse_rate, log_p, log_q, p_x0_x1, new_mask, mu_model, var_model
 
@@ -179,13 +179,13 @@ def run_chaine_train_for(network, num_steps, mu_prior, var_prior, mu_target, var
     # Run the chain
     for i in range(num_steps):
         z_T, noise_level_args, log_p, log_q, p_x0_x1, new_mask, mu_model, var_model = compute_step_train(network, z_T, infuse_rate, mu_target, var_target, coeff_scale_var)
-        # Compute \sum_{k=1}^(T-1) log(p(z^(t) | z^(t-1)))
+        # Compute \sum_{t=1}^(T-1) log(p(z^(t) | z^(t-1)))
         log_p_sum = log_p + log_p_sum
-        # Compute \sum_{k=1}^(T-1) log(q(z^(t) | z^(t-1)))
+        # Compute \sum_{t=1}^(T-1) log(q(z^(t) | z^(t-1)))
         log_q_sum = log_q + log_q_sum
-        # Compute \sum_{k=1}^(T-1) \frac{t}{T} log(p(x | z^(t)))
+        # Compute \sum_{t=1}^(T-1) \frac{t}{T} log(p(x | z^(t-1)))
         log_pzx_sum = log_pzx_sum + (p_x0_x1 * (i+1) / num_steps)
-        # Increase infusion rate if list
+        # Increase infusion rate 
         if infuse_rate_decay:
             infuse_rate += infuse_rate_decay
     return z_T, log_p_sum, log_q_sum, p_x0_x1, log_pzx_sum
