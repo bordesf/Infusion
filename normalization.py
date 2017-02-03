@@ -42,7 +42,7 @@ import theano.tensor as T
 from lasagne import init
 from lasagne import nonlinearities
 
-from lasagne import Layer
+from lasagne.layers.base import Layer
 
 
 __all__ = [
@@ -382,7 +382,7 @@ def batch_norm(layer, **kwargs):
                (getattr(layer, 'name', None) and layer.name + '_bn'))
     layer = BatchNormLayer(layer, name=bn_name, **kwargs)
     if nonlinearity is not None:
-        from .special import NonlinearityLayer
+        from lasagne.layers.special import NonlinearityLayer
         nonlin_name = bn_name and bn_name + '_nonlin'
         layer = NonlinearityLayer(layer, nonlinearity, name=nonlin_name)
     return layer
