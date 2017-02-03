@@ -6,6 +6,7 @@ import lasagne.layers as ll
 import time
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from lasagne import updates as lasagne_updates
+from normalization import batch_norm
 from fuel.schemes import ShuffledScheme, SequentialScheme
 from fuel.streams import DataStream
 from fuel.datasets import MNIST
@@ -55,7 +56,8 @@ def batch_iterator(dataset, batchsize, shuffle=False):
     else:
         train_scheme = SequentialScheme(examples=dataset.num_examples, batch_size=batchsize)
     stream = DataStream.default_stream(dataset=dataset, iteration_scheme=train_scheme)
-    stream_data = Cast(stream, dtype=theano.config.floatX, which_sources=('features',))
+    stream_scale = ScaleAndShift(stream, 1./255.0, 0, which_sources=('features',))
+    stream_data = Cast(stream_scale, dtype=theano.config.floatX, which_sources=('features',))
     return stream_data.get_epoch_iterator()
 
 
@@ -103,7 +105,7 @@ def get_probabilites(X_train, batch_size):
 def build_MLP_mnist_bn():
     net = {}
     net['input'] = ll.InputLayer(shape=(None, 1, 28, 28), input_var=None)
-    net['d0'] = ll.batch_norm(ll.DenseLayer(net['input'], num_units=1200, nonlinearity=lasagne.nonlinearities.rectify))
+    net['d0'] = batch_norm(ll.DenseLayer(net['input'], num_units=1200, nonlinearity=lasagne.nonlinearities.rectify), steps=num_steps)
     net['mu1'] = ll.DenseLayer(net['d0'], num_units=28*28, nonlinearity=lasagne.nonlinearities.sigmoid)
     net['var1'] = ll.DenseLayer(net['d0'], num_units=28*28, nonlinearity=lasagne.nonlinearities.sigmoid)
     net['mu'] = ll.ReshapeLayer(net['mu1'], (([0], 1, 28, 28)))
