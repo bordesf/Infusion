@@ -18,7 +18,7 @@ import nn
 
 srng = RandomStreams()
 #### HYPER PARAMETERS ####
-num_epochs = 500
+num_epochs = 100
 num_steps = 5
 infuse_rate = 0.0
 infuse_rate_growth = 0.08
@@ -55,8 +55,7 @@ def batch_iterator(dataset, batchsize, shuffle=False):
     else:
         train_scheme = SequentialScheme(examples=dataset.num_examples, batch_size=batchsize)
     stream = DataStream.default_stream(dataset=dataset, iteration_scheme=train_scheme)
-    stream_scale = ScaleAndShift(stream, 1./255.0, 0, which_sources=('features',))
-    stream_data = Cast(stream_scale, dtype=theano.config.floatX, which_sources=('features',))
+    stream_data = Cast(stream, dtype=theano.config.floatX, which_sources=('features',))
     return stream_data.get_epoch_iterator()
 
 
@@ -72,6 +71,7 @@ def create_MNIST_data_streams():
 def Compute_probs_gaussian(dataset):
     X_train = dataset
     data = X_train.reshape((X_train.shape[0], X_train.shape[1], X_train.shape[2] * X_train.shape[3]))
+    print data.max()
     data = data.swapaxes(0, 1)
     data = data.swapaxes(1, 2)
     mean = np.zeros((X_train.shape[1], X_train.shape[2] * X_train.shape[3]))
@@ -100,33 +100,10 @@ def get_probabilites(X_train, batch_size):
 
 
 #### Build model with Lasagne ####
-def build_MLP_mnist():
-    net = {}
-    net['input'] = ll.InputLayer(shape=(None, 1, 28, 28), input_var=None)
-    net['d0'] = ll.DenseLayer(net['input'], num_units=1200, W=lasagne.init.Orthogonal(), nonlinearity=lasagne.nonlinearities.rectify)
-    net['d1'] = ll.DenseLayer(net['d0'], num_units=1200, W=lasagne.init.Orthogonal(), nonlinearity=lasagne.nonlinearities.rectify)
-    net['mu1'] = ll.DenseLayer(net['d1'], num_units=28*28, W=lasagne.init.Orthogonal(), nonlinearity=lasagne.nonlinearities.sigmoid)
-    net['var1'] = ll.DenseLayer(net['d1'], num_units=28*28, W=lasagne.init.Orthogonal(), nonlinearity=lasagne.nonlinearities.sigmoid)
-    net['mu'] = ll.ReshapeLayer(net['mu1'], (([0], 1, 28, 28)))
-    net['var'] = ll.ReshapeLayer(net['var1'], (([0], 1, 28, 28)))
-    return net
-
-#### Build model with Lasagne ####
-def build_MLP_mnist_bn_old():
-    net = {}
-    net['input'] = ll.InputLayer(shape=(None, 1, 28, 28), input_var=None)
-    net['d0'] = ll.batch_norm(ll.DenseLayer(net['input'], num_units=1200, nonlinearity=lasagne.nonlinearities.rectify), steps=num_steps)
-    net['d1'] = ll.batch_norm(ll.DenseLayer(net['d0'], num_units=1200, nonlinearity=lasagne.nonlinearities.rectify), steps=num_steps)
-    net['mu1'] = ll.DenseLayer(net['d1'], num_units=28*28, nonlinearity=lasagne.nonlinearities.sigmoid)
-    net['var1'] = ll.DenseLayer(net['d1'], num_units=28*28, nonlinearity=lasagne.nonlinearities.sigmoid)
-    net['mu'] = ll.ReshapeLayer(net['mu1'], (([0], 1, 28, 28)))
-    net['var'] = ll.ReshapeLayer(net['var1'], (([0], 1, 28, 28)))
-    return net
-
 def build_MLP_mnist_bn():
     net = {}
     net['input'] = ll.InputLayer(shape=(None, 1, 28, 28), input_var=None)
-    net['d0'] = ll.batch_norm(ll.DenseLayer(net['input'], num_units=1200, nonlinearity=lasagne.nonlinearities.rectify), steps=num_steps)
+    net['d0'] = ll.batch_norm(ll.DenseLayer(net['input'], num_units=1200, nonlinearity=lasagne.nonlinearities.rectify))
     net['mu1'] = ll.DenseLayer(net['d0'], num_units=28*28, nonlinearity=lasagne.nonlinearities.sigmoid)
     net['var1'] = ll.DenseLayer(net['d0'], num_units=28*28, nonlinearity=lasagne.nonlinearities.sigmoid)
     net['mu'] = ll.ReshapeLayer(net['mu1'], (([0], 1, 28, 28)))
@@ -385,7 +362,7 @@ test_batches = 0
 loss_total_test = 0
 for batch in batch_iterator(X_test, batch_size, shuffle=True):
     # Get batch of valid data
-    mu_target = batch[0]
+    mu_target = batch[0] + np.random.uniform(0, 1/255.0, batch[0].shape)
     # Get current batch size
     curr_size = batch[0].shape[0]
     # Resize to the current batch size
