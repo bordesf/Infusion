@@ -15,18 +15,17 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 from parzen import get_parzen_estimator
-import nn
 
 srng = RandomStreams()
 #### HYPER PARAMETERS ####
-num_epochs = 100
-num_steps = 5
-infuse_rate = 0.0
-infuse_rate_growth = 0.08
+num_epochs = 1500
+num_steps = 10
+infuse_rate = 0.02
+infuse_rate_growth = 0.02
 batch_size = 512
-var_scale = 1
+var_scale = 0.1
 var_target_value = 1e-4
-#var_target_value = 0.025
+
 
 ### Saves images
 def print_samples(prediction, nepoch, batch_size, filename_dest):
@@ -56,7 +55,7 @@ def batch_iterator(dataset, batchsize, shuffle=False):
     else:
         train_scheme = SequentialScheme(examples=dataset.num_examples, batch_size=batchsize)
     stream = DataStream.default_stream(dataset=dataset, iteration_scheme=train_scheme)
-    stream_scale = ScaleAndShift(stream, 1./255.0, 0, which_sources=('features',))
+    stream_scale = ScaleAndShift(stream, 1./256.0, 0, which_sources=('features',))
     stream_data = Cast(stream_scale, dtype=theano.config.floatX, which_sources=('features',))
     return stream_data.get_epoch_iterator()
 
@@ -73,7 +72,6 @@ def create_MNIST_data_streams():
 def Compute_probs_gaussian(dataset):
     X_train = dataset
     data = X_train.reshape((X_train.shape[0], X_train.shape[1], X_train.shape[2] * X_train.shape[3]))
-    print data.max()
     data = data.swapaxes(0, 1)
     data = data.swapaxes(1, 2)
     mean = np.zeros((X_train.shape[1], X_train.shape[2] * X_train.shape[3]))
@@ -206,7 +204,7 @@ def run_chaine_train_for(network, num_steps, mu_prior, var_prior, mu_target, var
 
 # Compute a step of sampling
 def compute_step_samples(network, z_T, coeff_scale_var=1, t=0, epsilon=1e-5):
-    outputs = ll.get_output([network['mu'], network['var']], z_T, deterministic=True, steps=t)#, batch_norm_use_averages=False)
+    outputs = ll.get_output([network['mu'], network['var']], z_T, deterministic=True, steps=t)
     # Get the mean
     mu_model = outputs[0]
     # Get the variance
@@ -293,7 +291,7 @@ for epoch in range(num_epochs):
     # Go through all mini batch of the training set
     for batch in batch_iterator(X_train, batch_size, shuffle=True):
         # Get batch of training data
-        mu_target = batch[0]
+        mu_target = batch[0] + np.random.uniform(0, 1./256.0, batch[0].shape)
         # Get current batch size
         curr_size = batch[0].shape[0]
         # Resize to the current batch size
@@ -316,7 +314,7 @@ for epoch in range(num_epochs):
     loss_total_val = 0
     for batch in batch_iterator(X_val, batch_size, shuffle=True):
         # Get batch of valid data
-        mu_target = batch[0]
+        mu_target = batch[0] + np.random.uniform(0, 1./256.0, batch[0].shape)
         # Get current batch size
         curr_size = batch[0].shape[0]
         # Resize to the current batch size
@@ -337,14 +335,9 @@ loss_total, loss_total_train = 0., 0.
 train_batches = 0
 
 # Go through all mini batch of the training set
-d_norm = ll.get_all_params(network['d0'])
-print d_norm
-print d_norm[3].get_value()
-print d_norm[4].get_value()
-print d_norm[11].get_value()
 for batch in batch_iterator(X_train, batch_size, shuffle=True):
     # Get batch of training data
-    mu_target = batch[0]
+    mu_target = batch[0] + np.random.uniform(0, 1./256.0, batch[0].shape)
     # Get current batch size
     curr_size = batch[0].shape[0]
     # Resize to the current batch size
@@ -355,10 +348,6 @@ for batch in batch_iterator(X_train, batch_size, shuffle=True):
     x_T, lower_bound = val_batch_norm(mu, sigma, mu_target, sigma_t)
     train_batches += 1
     loss_total += lower_bound
-print loss_total / train_batches
-print d_norm[3].get_value()
-print d_norm[4].get_value()
-print d_norm[11].get_value()
 # Compute Lower Bound on test set
 test_batches = 0
 loss_total_test = 0
@@ -388,29 +377,8 @@ for i in range(20):
 parzen, se = get_parzen_estimator(data_test, samples_mu, "mnist")
 print "Lower bound on test set: %.4f" % (loss_total_test)
 print "Parzen on test set: %.4f" % (parzen.mean())
+
 # Save some samples and the mean
 x_T, samples_chain, mu_pred, var_pred = fn_sample(mu_prior[0:144], var_prior[0:144])
-print_samples(x_T, epoch, 144, 'samples_more.png')
-print_samples(mu_pred, epoch, 144, 'mean_more.png')
-"""
-for means in d_norm:
-    if means.name == "mean_" + str(num_steps-1):
-        tmp_mean = means.get_value()
-        print tmp_mean
-for sigmas in d_norm:
-    if sigmas.name == "inv_std_" + str(num_steps-1):
-        tmp_std = sigmas.get_value()
-        print tmp_std
-for means in d_norm:
-    if means.name == "mean_" + str(i):
-        means.set_value(tmp_mean)
-for sigmas in d_norm:
-    if sigmas.name == "inv_std_" + str(i):
-        sigmas.set_value(tmp_std)
-"""
-#x_T, samples_chain, mu_pred, var_pred = fn_sample(mu_pred, var_pred)
-#print_samples(mu_pred, epoch, 144, 'mean2.png')
-x_T, samples_chain, mu_pred, var_pred = fn_sample(mu_prior, var_prior)
-print_samples(mu_pred[0:144], epoch, 144, 'mean3_more.png')
-x_T, samples_chain, mu_pred, var_pred = fn_sample(mu_prior[0:256], var_prior[0:256])
-print_samples(mu_pred[0:144], epoch, 144, 'mean4_more.png')
+print_samples(x_T, epoch, 144, 'samples.png')
+print_samples(mu_pred, epoch, 144, 'means.png')
