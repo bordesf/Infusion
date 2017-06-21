@@ -1,3 +1,7 @@
+# Original from lasagne repo.
+# This code was modified in order to include the management of
+# differents steps.
+
 # -*- coding: utf-8 -*-
 
 """
