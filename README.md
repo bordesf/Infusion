@@ -1,6 +1,8 @@
 # Infusion Training
 
-<img align="left" src="infusion.jpg" width="800"/>
+<p align="left">
+  <img src="infusion.jpg" width="800"/>
+</p>
 
 This repository contains the code for the paper: <br />
 **"Learning to Generate Samples from Noise through Infusion Training."**, <br />
