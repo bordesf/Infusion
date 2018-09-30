@@ -1,6 +1,6 @@
-# Infusion
+# Infusion Training
 
-This repository contains the code for the paper:
+This repository contains the code for the paper: <br />
 "Learning to Generate Samples from Noise through Infusion Training.", Florian Bordes, Sina Honari,
 Pascal Vincent. https://arxiv.org/abs/1703.06975
 
@@ -9,4 +9,3 @@ experiment on a GPU, you have to use:
 ```
 THEANO_FLAGS=floatX=float32,device=cuda python run.py
 ```
-
